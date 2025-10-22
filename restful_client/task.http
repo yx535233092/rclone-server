@@ -1,0 +1,19 @@
+POST http://localhost:3000/task
+Content-Type: application/json
+
+{
+  "name": "test",
+  "source_device_id": 1,
+  "source_bucket_name": "test",
+  "source_url": "test",
+  "target_device_id": 1,
+  "target_bucket_name": "test",
+  "target_url": "test",
+  "concurrent": 1,
+  "limit_speed": 0,
+  "increment_circle": 0
+}
+
+### 
+# 获取任务
+get http://localhost:3000/task?id=1

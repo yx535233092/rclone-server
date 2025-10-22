@@ -1,0 +1,30 @@
+# 添加设备
+post http://localhost:3000/device?device_type=target
+Content-Type: application/json
+
+{
+  "type": "s3",
+  "provider": "Minio",
+  "access_key_id": "minioadmin",
+  "secret_access_key": "minioadmin",
+  "endpoint": "http://localhost:9000"
+}
+
+###
+# 获取设备
+get http://localhost:3000/device?device_type=target
+Content-Type: application/json
+
+###
+# 编辑设备
+put http://localhost:3000/device?device_type=target
+Content-Type: application/json
+
+{
+  "id": 1,
+  "type": "s3",
+  "provider": "Minio",
+  "access_key_id": "minioadmin",
+  "secret_access_key": "minioadmin",
+  "endpoint": "http://localhost:9000"
+}
