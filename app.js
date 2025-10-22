@@ -4,8 +4,11 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+let { initializeDataBase } = require('./db/sqliteConnection');
+
 var indexRouter = require('./routes/index');
-var deviceRouter = require('./routes/devicdeRouter');
+var deviceRouter = require('./routes/deviceRouter');
+var taskRouter = require('./routes/taskRouter');
 
 var app = express();
 
@@ -21,6 +24,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/device', deviceRouter);
+app.use('/task', taskRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
@@ -37,5 +41,14 @@ app.use(function (err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
+initializeDataBase()
+  .then(async () => {
+    console.log('数据库启动成功');
+  })
+  .catch((error) => {
+    console.log('数据库启动失败');
+    console.log(error);
+  });
 
 module.exports = app;
