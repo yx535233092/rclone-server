@@ -14,11 +14,11 @@ async function initializeDataBase() {
       driver: sqlite3.Database
     });
     // 创建设备表
-    db.run(
-      'create table if not exists devices(id integer primary key autoincrement, type text, provider text, access_key_id text, secret_access_key text, endpoint text, device_type text)'
+    await db.run(
+      'create table if not exists devices(id integer primary key autoincrement,name text, type text, portocol text, ak text, sk text, endpoint text, device_type text)'
     );
     // 创建任务表
-    db.run(
+    await db.run(
       'create table if not exists tasks(id integer primary key autoincrement, name text, source_device_id integer, source_bucket_name text, source_url text, target_device_id integer, target_bucket_name text, target_url text,concurrent integer, limit_speed integer, increment_circle integer)'
     );
     console.log('数据库连接成功');

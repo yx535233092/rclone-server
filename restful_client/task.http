@@ -3,11 +3,11 @@ Content-Type: application/json
 
 {
   "name": "test",
-  "source_device_id": 1,
-  "source_bucket_name": "test",
+  "source_device_id": 4,
+  "source_bucket_name": "my-bucket",
   "source_url": "test",
   "target_device_id": 1,
-  "target_bucket_name": "test",
+  "target_bucket_name": "another-bucket",
   "target_url": "test",
   "concurrent": 1,
   "limit_speed": 0,
@@ -16,4 +16,5 @@ Content-Type: application/json
 
 ### 
 # 获取任务
-get http://localhost:3000/task?id=1
+get http://localhost:3000/task/1
+
