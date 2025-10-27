@@ -7,6 +7,7 @@ let paramsValid = require("../utils/paramsValid");
  * 添加设备
  */
 router.post("/", async function (req, res) {
+  const db = getDB();
   // 1. 获取请求参数
   const { name, type, protocol, ak, sk, endpoint } = req.body;
   const device_type = req.query.device_type;
@@ -19,8 +20,16 @@ router.post("/", async function (req, res) {
     });
   }
 
-  // 3. 入库
-  const db = getDB();
+  // 3. 判断设备是否存在
+  const device = await db.get("select * from devices where name = ?", [name]);
+  if (device) {
+    return res.json({
+      code: 400,
+      message: "设备已存在，请更换设备名",
+    });
+  }
+
+  // 4. 入库
   const sql = `insert into devices(name,type, protocol, ak, sk, endpoint, device_type) values(?,?,?,?,?,?,?)`;
   try {
     const { lastID } = await db.run(sql, [name, type, protocol, ak, sk, endpoint, device_type]);
@@ -109,6 +118,8 @@ router.get("/", async function (req, res, next) {
  * 编辑设备
  */
 router.put("/:id", async function (req, res) {
+  const db = getDB();
+
   // 1. 获取请求参数
   const { id } = req.params;
   const { name, type, protocol, ak, sk, endpoint } = req.body;
@@ -121,8 +132,15 @@ router.put("/:id", async function (req, res) {
     });
   }
 
+  const device = await db.get("select * from devices where name = ?", [name]);
+  if (device) {
+    return res.json({
+      code: 400,
+      message: "设备名已存在，请更换设备名",
+    });
+  }
+
   // 3. 编辑信息
-  const db = getDB();
   const sql = `update devices set name = ?, type = ?, protocol = ?, ak = ?, sk = ?, endpoint = ? where id = ?`;
   try {
     await db.run(sql, [name, type, protocol, ak, sk, endpoint, id]);

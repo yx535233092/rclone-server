@@ -15,7 +15,7 @@ async function initializeDataBase() {
     });
     // 创建设备表
     await db.run(
-      "create table if not exists devices(id integer primary key autoincrement,name text, type text, protocol text, ak text, sk text, endpoint text, device_type text)"
+      "create table if not exists devices(id integer primary key autoincrement,name text unique, type text, protocol text, ak text, sk text, endpoint text, device_type text)"
     );
     // 创建任务表
     await db.run(

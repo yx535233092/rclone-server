@@ -177,54 +177,17 @@ router.get("/:id", async function (req, res) {
  */
 router.put("/:id", async function (req, res) {
   const { id } = req.params;
-  const {
-    name,
-    source_device_id,
-    source_bucket_name,
-    source_url,
-    target_device_id,
-    target_bucket_name,
-    target_url,
-    concurrent,
-    limit_speed = 0,
-    increment_circle = 0,
-  } = req.body;
-  if (
-    !paramsValid([
-      id,
-      name,
-      source_device_id,
-      source_bucket_name,
-      source_url,
-      target_device_id,
-      target_bucket_name,
-      target_url,
-      concurrent,
-      limit_speed,
-      increment_circle,
-    ])
-  ) {
+  const { concurrent, limit_speed = 0, increment_circle = 0 } = req.body;
+  if (!paramsValid([id, concurrent, limit_speed, increment_circle])) {
     return res.json({
       code: 400,
       message: "缺少必填字段",
     });
   }
   const db = getDB();
-  const sql = `update tasks set name = ?, source_device_id = ?, source_bucket_name = ?, source_url = ?, target_device_id = ?, target_bucket_name = ?, target_url = ?, concurrent = ?, limit_speed = ?, increment_circle = ? where id = ?`;
+  const sql = `update tasks set concurrent = ?, limit_speed = ?, increment_circle = ? where id = ?`;
   try {
-    await db.run(sql, [
-      name,
-      source_device_id,
-      source_bucket_name,
-      source_url,
-      target_device_id,
-      target_bucket_name,
-      target_url,
-      concurrent,
-      limit_speed,
-      increment_circle,
-      id,
-    ]);
+    await db.run(sql, [concurrent, limit_speed, increment_circle, id]);
     return res.json({
       code: 200,
       message: "任务编辑成功",
@@ -289,9 +252,12 @@ router.post("/start/:id", async function (req, res) {
   const db = getDB();
   // 1. 判断是否存在rclone实例
   if (rcloneInstances.has(id)) {
-    return res.status(400).json({
-      code: 400,
-      message: "任务已存在",
+    const rclone = rcloneInstances.get(id);
+    await rclone.init();
+    await rclone.start();
+    return res.status(200).json({
+      code: 200,
+      message: "任务启动成功",
     });
   }
 

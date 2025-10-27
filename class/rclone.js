@@ -4,7 +4,7 @@
  * @param {number} taskId - 任务ID
  * @property {taskId} string
  * @property {totalSize} number
- * @property {status} string
+ * @property {status} 'init' | 'migration' | 'success' | 'error' | 'stopped'
  * @returns {Rclone}
  */
 
@@ -15,7 +15,6 @@ class Rclone {
   constructor(taskId) {
     this.taskId = taskId;
     this.totalSize = 0;
-    this.status = "unready";
     this.rcloneProcess = null;
   }
 
@@ -28,24 +27,33 @@ class Rclone {
     this.sourceDevice = sourceDevice;
     this.targetDevice = targetDevice;
     this.taskInfo = taskInfo;
-    this.status = "ready";
+    this.status = "init";
   }
 
   async start() {
     const db = getDB();
     // 1. 构造shell命令
     console.log("-".repeat(15), "开始执行任务", "-".repeat(15));
-    const rcloneProcess = spawn("rclone", [
+
+    let spawnargs = [
       "copy",
       "-P",
       `${this.sourceDevice.name}:${this.taskInfo.source_bucket_name}`,
       `${this.targetDevice.name}:${this.taskInfo.target_bucket_name}`,
       "--config",
       this.taskInfo.config_url,
-      "--bwlimit",
-      "10K",
-    ]);
-    console.log("执行命令：", rcloneProcess.spawnargs.join(" "));
+    ];
+    // 限速配置
+    if (this.taskInfo.limit_speed > 0) {
+      spawnargs.push("--bwlimit", `${this.taskInfo.limit_speed}M`);
+    }
+    // 并发配置
+    if (this.taskInfo.concurrent > 1) {
+      spawnargs.push("--transfers", `${this.taskInfo.concurrent}`);
+    }
+    console.log("执行命令：", spawnargs.join(" "));
+
+    const rcloneProcess = spawn("rclone", spawnargs);
 
     this.rcloneProcess = rcloneProcess;
     this.status = "migration";
@@ -62,17 +70,20 @@ class Rclone {
     });
 
     // 3. 监听rclone错误输出
-    rcloneProcess.stderr.on("data", (data) => {
+    rcloneProcess.stderr.on("data", async (data) => {
       console.error(data.toString());
+      this.status = "error";
+      await db.run("update tasks set status = 'error' where id = ?", [this.taskId]);
     });
 
     // 4. 监听rclone关闭事件
-    rcloneProcess.on("close", (code) => {
+    rcloneProcess.on("close", async (code) => {
       console.log("-".repeat(15), "执行结束", "-".repeat(15));
+      console.log(code);
+
       if (code === 0) {
-        console.log("执行成功");
-      } else {
-        console.log("执行失败,错误码：", code);
+        this.status = "success";
+        await db.run("update tasks set status = 'success' where id = ?", [this.taskId]);
       }
     });
   }
@@ -92,7 +103,7 @@ class Rclone {
 
     // 2. 确认文件检查状态
     const checkStatus = input.match(/Checks:\s*\d*\s*\/\s*\d*,\s*(.*?),/)[1];
-    if (checkStatus !== "100%") {
+    if (checkStatus !== "100%" && checkStatus !== "-") {
       return {};
     }
     console.log("文件检查状态：", checkStatus);
@@ -161,9 +172,10 @@ class Rclone {
           console.log("强制杀进程");
         }
       }, 5000);
-      this.status = "stopped";
-      await db.run("update tasks set status = 'stopped' where id = ?", [this.taskId]);
+
       if (this.rcloneProcess.killed) {
+        this.status = "stopped";
+        await db.run("update tasks set status = 'stopped' where id = ?", [this.taskId]);
         console.log("成功停止执行任务");
       }
     } else {
