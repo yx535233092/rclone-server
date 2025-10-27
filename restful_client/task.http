@@ -19,3 +19,9 @@ Content-Type: application/json
 # 获取任务
 get http://localhost:3000/task/10
 
+###
+# 删除任务
+DELETE http://localhost:3000/task/1
+
+###
+DELETE http://localhost:3000/task/

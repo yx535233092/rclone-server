@@ -1,12 +1,12 @@
-var express = require('express');
+var express = require("express");
 var router = express.Router();
-let { getDB } = require('../db');
-let paramsValid = require('../utils/paramsValid');
+let { getDB } = require("../db");
+let paramsValid = require("../utils/paramsValid");
 
 /**
  * 添加设备
  */
-router.post('/', async function (req, res) {
+router.post("/", async function (req, res) {
   // 1. 获取请求参数
   const { name, type, protocol, ak, sk, endpoint } = req.body;
   const device_type = req.query.device_type;
@@ -15,7 +15,7 @@ router.post('/', async function (req, res) {
   if (!paramsValid([device_type, name, type, protocol, ak, sk, endpoint])) {
     return res.json({
       code: 400,
-      message: '缺少必填字段'
+      message: "缺少必填字段",
     });
   }
 
@@ -23,16 +23,26 @@ router.post('/', async function (req, res) {
   const db = getDB();
   const sql = `insert into devices(name,type, protocol, ak, sk, endpoint, device_type) values(?,?,?,?,?,?,?)`;
   try {
-    await db.run(sql, [name, type, protocol, ak, sk, endpoint, device_type]);
+    const { lastID } = await db.run(sql, [name, type, protocol, ak, sk, endpoint, device_type]);
     return res.json({
       code: 200,
-      message: '设备信息存入数据库成功'
+      message: "设备信息存入数据库成功",
+      data: {
+        name,
+        type,
+        protocol,
+        ak,
+        sk,
+        endpoint,
+        device_type,
+        id: lastID,
+      },
     });
   } catch (err) {
     return res.json({
       code: 500,
-      message: '设备信息存入数据库失败',
-      error: err.message
+      message: "设备信息存入数据库失败",
+      error: err.message,
     });
   }
 });
@@ -40,38 +50,38 @@ router.post('/', async function (req, res) {
 /**
  * 获取设备
  */
-router.get('/:id', async function (req, res, next) {
+router.get("/:id", async function (req, res, next) {
   const db = getDB();
   const { id } = req.params;
   try {
-    const device = await db.get('select * from devices where id = ?', [id]);
+    const device = await db.get("select * from devices where id = ?", [id]);
     return res.json({
       code: 200,
-      message: '设备获取成功',
-      data: device
+      message: "设备获取成功",
+      data: device,
     });
   } catch (error) {
     return res.json({
       code: 500,
-      message: '设备获取失败',
-      error: error.message
+      message: "设备获取失败",
+      error: error.message,
     });
   }
 });
 
-router.get('/', async function (req, res, next) {
+router.get("/", async function (req, res, next) {
   const db = getDB();
   // 1. 获取请求参数
   const query = req.query;
   if (!query.device_type) {
     return res.json({
       code: 400,
-      message: '缺少设备类型'
+      message: "缺少设备类型",
     });
   }
   // 2. 键值对获取
   const kv = Object.entries(query).filter(([key, value]) => {
-    return key !== 'device_type';
+    return key !== "device_type";
   });
   // 3. 键值对生成sql
   let sql = `select * from devices where device_type = '${query.device_type}'`;
@@ -83,14 +93,14 @@ router.get('/', async function (req, res, next) {
     const devices = await db.all(sql);
     return res.json({
       code: 200,
-      message: '设备获取成功',
-      data: devices
+      message: "设备获取成功",
+      data: devices,
     });
   } catch (error) {
     return res.json({
       code: 500,
-      message: '设备获取失败',
-      error: error.message
+      message: "设备获取失败",
+      error: error.message,
     });
   }
 });
@@ -98,7 +108,7 @@ router.get('/', async function (req, res, next) {
 /**
  * 编辑设备
  */
-router.put('/:id', async function (req, res) {
+router.put("/:id", async function (req, res) {
   // 1. 获取请求参数
   const { id } = req.params;
   const { name, type, protocol, ak, sk, endpoint } = req.body;
@@ -107,7 +117,7 @@ router.put('/:id', async function (req, res) {
   if (!paramsValid([id, name, type, protocol, ak, sk, endpoint])) {
     return res.json({
       code: 400,
-      message: '缺少必填字段'
+      message: "缺少必填字段",
     });
   }
 
@@ -118,13 +128,13 @@ router.put('/:id', async function (req, res) {
     await db.run(sql, [name, type, protocol, ak, sk, endpoint, id]);
     return res.json({
       code: 200,
-      message: '设备信息更新成功'
+      message: "设备信息更新成功",
     });
   } catch (err) {
     return res.json({
       code: 500,
-      message: '设备信息更新失败',
-      error: err.message
+      message: "设备信息更新失败",
+      error: err.message,
     });
   }
 });
@@ -132,7 +142,7 @@ router.put('/:id', async function (req, res) {
 /**
  * 删除设备
  */
-router.delete('/:id', async function (req, res) {
+router.delete("/:id", async function (req, res) {
   // 1. 获取请求参数
   const { id } = req.params;
 
@@ -140,7 +150,7 @@ router.delete('/:id', async function (req, res) {
   if (!id) {
     return res.json({
       code: 400,
-      message: '缺少必填字段'
+      message: "缺少必填字段",
     });
   }
 
@@ -151,13 +161,13 @@ router.delete('/:id', async function (req, res) {
     await db.run(sql, [id]);
     return res.json({
       code: 200,
-      message: '设备信息删除成功'
+      message: "设备信息删除成功",
     });
   } catch (err) {
     return res.json({
       code: 500,
-      message: '设备信息删除失败',
-      error: err.message
+      message: "设备信息删除失败",
+      error: err.message,
     });
   }
 });

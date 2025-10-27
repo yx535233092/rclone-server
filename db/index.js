@@ -19,7 +19,7 @@ async function initializeDataBase() {
     );
     // 创建任务表
     await db.run(
-      "create table if not exists tasks(id integer primary key autoincrement, name text, source_device_id integer, source_bucket_name text, source_url text, target_device_id integer, target_bucket_name text, target_url text,concurrent integer, limit_speed integer, increment_circle integer, status text, total_size integer,transferred_size integer, config_url text)"
+      "create table if not exists tasks(id integer primary key autoincrement, name text, source_device_id integer, source_bucket_name text, source_url text, target_device_id integer, target_bucket_name text, target_url text,concurrent integer, limit_speed integer, increment_circle integer, status text, config_url text)"
     );
     console.log("数据库连接成功");
   } catch (error) {

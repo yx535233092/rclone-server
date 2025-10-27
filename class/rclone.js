@@ -31,7 +31,8 @@ class Rclone {
     this.status = "ready";
   }
 
-  start() {
+  async start() {
+    const db = getDB();
     // 1. 构造shell命令
     console.log("-".repeat(15), "开始执行任务", "-".repeat(15));
     const rcloneProcess = spawn("rclone", [
@@ -44,8 +45,11 @@ class Rclone {
       "--bwlimit",
       "10K",
     ]);
+    console.log("执行命令：", rcloneProcess.spawnargs.join(" "));
+
     this.rcloneProcess = rcloneProcess;
     this.status = "migration";
+    await db.run("update tasks set status = 'migration' where id = ?", [this.taskId]);
 
     // 2. 监听rclone输出数据
     rcloneProcess.stdout.on("data", (data) => {
@@ -119,13 +123,16 @@ class Rclone {
 
     // 9. 返回解析结果
     return {
-      checkStatus,
-      transferredSize,
-      totalSize,
-      downloadSpeed,
-      remainingTime,
-      elapsedTime,
-      percent,
+      taskId: this.taskId,
+      taskInfo: {
+        checkStatus,
+        transferredSize,
+        totalSize,
+        downloadSpeed,
+        remainingTime,
+        elapsedTime,
+        percent,
+      },
     };
   }
 
@@ -141,7 +148,8 @@ class Rclone {
     }
   }
 
-  stop() {
+  async stop() {
+    const db = getDB();
     // 1. 停止rclone进程
     if (this.rcloneProcess) {
       this.rcloneProcess.kill("SIGTERM");
@@ -154,6 +162,7 @@ class Rclone {
         }
       }, 5000);
       this.status = "stopped";
+      await db.run("update tasks set status = 'stopped' where id = ?", [this.taskId]);
       if (this.rcloneProcess.killed) {
         console.log("成功停止执行任务");
       }

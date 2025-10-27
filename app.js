@@ -9,7 +9,6 @@ let { initializeDataBase } = require("./db");
 var indexRouter = require("./routes/index");
 var deviceRouter = require("./routes/deviceRouter");
 var taskRouter = require("./routes/taskRouter");
-var rcloneRouter = require("./routes/rcloneRouter");
 var app = express();
 
 // view engine setup
@@ -25,7 +24,6 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/", indexRouter);
 app.use("/device", deviceRouter);
 app.use("/task", taskRouter);
-app.use("/rclone", rcloneRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

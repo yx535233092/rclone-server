@@ -4,6 +4,10 @@ let { getDB } = require("../db");
 const paramsValid = require("../utils/paramsValid");
 const path = require("path");
 const fs = require("fs");
+const Rclone = require("../class/rclone");
+
+// 全局管理rclone实例
+const rcloneInstances = new Map();
 
 /**
  * 创建任务
@@ -45,7 +49,7 @@ router.post("/", async function (req, res) {
 
   // 3. 创建任务
   const db = getDB();
-  const sql = `insert into tasks(name, source_device_id, source_bucket_name, source_url, target_device_id, target_bucket_name, target_url, concurrent, limit_speed, increment_circle, status) values(?,?,?,?,?,?,?,?,?,?,?)`;
+  const sql = `insert into tasks(name, source_device_id, source_bucket_name, source_url, target_device_id, target_bucket_name, target_url, concurrent, limit_speed, increment_circle,status) values(?,?,?,?,?,?,?,?,?,?,?)`;
   try {
     const { lastID: id } = await db.run(sql, [
       name,
@@ -58,7 +62,7 @@ router.post("/", async function (req, res) {
       concurrent,
       limit_speed,
       increment_circle,
-      "migration",
+      "unready",
     ]);
     // 4. 创建配置文件
     const config_url = path.join(__dirname, "..", "configs", `rclone_${id}.conf`);
@@ -91,9 +95,26 @@ router.post("/", async function (req, res) {
     }
     await db.run("update tasks set config_url = ? where id = ?", [config_url, id]);
 
+    // 5. 数据处理
+    const data = {
+      name,
+      source_device_id,
+      source_bucket_name,
+      source_url,
+      target_device_id,
+      target_bucket_name,
+      target_url,
+      concurrent,
+      limit_speed,
+      increment_circle,
+      config_url,
+      id,
+    };
+
     return res.json({
       code: 200,
       message: "任务创建成功",
+      data,
     });
   } catch (error) {
     return res.json({
@@ -221,6 +242,7 @@ router.put("/:id", async function (req, res) {
  * 删除任务
  */
 router.delete("/:id", async function (req, res) {
+  const db = getDB();
   const { id } = req.params;
   // 2. 验证参数
   if (!id) {
@@ -229,7 +251,20 @@ router.delete("/:id", async function (req, res) {
       message: "缺少必填字段",
     });
   }
-  // 3. 删除任务
+  // 3. 停止任务
+  const rclone = rcloneInstances.get(id);
+  if (rclone) {
+    await rclone.stop();
+    rcloneInstances.delete(id);
+  }
+
+  // 4. 删除配置文件
+  const { config_url } = await db.get("select config_url from tasks where id = ?", [id]);
+  if (config_url) {
+    fs.unlinkSync(config_url);
+  }
+
+  // 5. 删除任务
   const sql = `delete from tasks where id = ?`;
   try {
     await db.run(sql, [id]);
@@ -244,6 +279,44 @@ router.delete("/:id", async function (req, res) {
       error: error.message,
     });
   }
+});
+
+/**
+ * 启动任务
+ */
+router.post("/start/:id", async function (req, res) {
+  const { id } = req.params;
+  const db = getDB();
+  // 1. 判断是否存在rclone实例
+  if (rcloneInstances.has(id)) {
+    return res.status(400).json({
+      code: 400,
+      message: "任务已存在",
+    });
+  }
+
+  const rclone = new Rclone(id);
+  await rclone.init();
+  await rclone.start();
+  rcloneInstances.set(id, rclone);
+
+  return res.status(200).json({
+    code: 200,
+    message: "任务启动成功",
+  });
+});
+
+/**
+ * 停止任务
+ */
+router.post("/stop/:id", async function (req, res) {
+  const { id } = req.params;
+  const rclone = rcloneInstances.get(id);
+  await rclone.stop();
+  return res.status(200).json({
+    code: 200,
+    message: "任务停止成功",
+  });
 });
 
 module.exports = router;
