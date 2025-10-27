@@ -1,20 +1,41 @@
-# 添加设备
+# 添加源设备
 post http://localhost:3000/device?device_type=source
 Content-Type: application/json
 
 {
   "name": "source",
   "type": "s3",
-  "portocol": "Minio",
+  "protocol": "Minio",
   "ak": "minioadmin",
   "sk": "minioadmin",
   "endpoint": "http://localhost:9000"
 }
 
 ###
-# 获取设备
-get http://localhost:3000/device/?device_type=target
+# 添加目标设备
+post http://localhost:3000/device?device_type=target
 Content-Type: application/json
+
+{
+  "name": "target",
+  "type": "s3",
+  "protocol": "Minio",
+  "ak": "minioadmin",
+  "sk": "minioadmin",
+  "endpoint": "http://localhost:9000"
+}
+
+###
+# 获取源设备
+get http://localhost:3000/device/?device_type=source
+
+###
+# 获取目标设备
+get http://localhost:3000/device/?device_type=target
+
+### 
+#模糊搜索
+# get http://localhost:3000/device/?device_type=target&name=source
 
 ###
 # 编辑设备
@@ -24,7 +45,7 @@ Content-Type: application/json
 {
   "name": "target",
    "type": "s3",
-  "portocol": "Minio",
+  "protocol": "Minio",
   "ak": "minioadmin",
   "sk": "minioadmin",
   "endpoint": "http://localhost:9000"

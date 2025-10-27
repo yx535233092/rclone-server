@@ -1,100 +1,169 @@
 /**
- * Rclone 类
+ * @class Rclone
+ * @description Rclone 类
+ * @param {number} taskId - 任务ID
+ * @property {taskId} string
+ * @property {totalSize} number
+ * @property {status} string
+ * @returns {Rclone}
  */
 
-let { getDB } = require('../db/sqliteConnection');
-let path = require('path');
-let fs = require('fs');
-let { exec } = require('child_process');
+let { getDB } = require("../db");
+const { spawn } = require("child_process");
 
 class Rclone {
-  constructor(task) {
-    this.task = task;
-    // 1. 判断数据库是否初始化
+  constructor(taskId) {
+    this.taskId = taskId;
+    this.totalSize = 0;
+    this.status = "unready";
+    this.rcloneProcess = null;
+  }
+
+  async init() {
+    // 1. 获取任务信息绑定到实例
     const db = getDB();
-    if (!db) {
-      throw new Error('数据库未初始化');
-    }
-    this.db = db;
-    // 2. 生成临时配置文件
-    this.generateConfig();
-  }
-
-  async generateConfig() {
-    // 1. 获取配置信息
-    console.log('-'.repeat(15) + '生成临时配置文件' + '-'.repeat(15));
-    const source_device = await this.getDeviceInfo(this.task.source_device_id);
-    const target_device = await this.getDeviceInfo(this.task.target_device_id);
-    this.source_device_name = source_device.name;
-    this.target_device_name = target_device.name;
-
-    // 2. 生成配置文件
-    const configContent = `
-    [${source_device.name}]
-    type = ${source_device.type}
-    provider = ${source_device.portocol}
-    access_key_id = ${source_device.ak}
-    secret_access_key = ${source_device.sk}
-    endpoint = ${source_device.endpoint}
-
-    [${target_device.name}]
-    type = ${target_device.type}
-    provider = ${target_device.portocol}
-    access_key_id = ${target_device.ak}
-    secret_access_key = ${target_device.sk}
-    endpoint = ${target_device.endpoint}
-    `;
-    const configFile = path.join(__dirname, 'rclone.conf');
-    try {
-      // 1. 删除原文件
-      if (fs.existsSync(configFile)) {
-        fs.unlinkSync(configFile);
-        console.log('配置文件删除成功');
-      }
-      // 2. 写入新文件
-      fs.writeFileSync(configFile, configContent);
-      console.log('配置文件写入成功');
-    } catch (err) {
-      throw new Error('配置文件操作失败: ' + err.message);
-    }
-  }
-
-  async getDeviceInfo(device_id) {
-    const device = await this.db.get('SELECT * FROM devices WHERE id = ?', [
-      device_id
-    ]);
-    return device;
+    const taskInfo = await db.get("SELECT * FROM tasks WHERE id = ?", [this.taskId]);
+    const sourceDevice = await db.get("SELECT * FROM devices WHERE id = ?", [taskInfo.source_device_id]);
+    const targetDevice = await db.get("SELECT * FROM devices WHERE id = ?", [taskInfo.target_device_id]);
+    this.sourceDevice = sourceDevice;
+    this.targetDevice = targetDevice;
+    this.taskInfo = taskInfo;
+    this.status = "ready";
   }
 
   start() {
-    setTimeout(() => {
-      let execSentence = `
-      rclone copy -P ${this.source_device_name}:${
-        this.task.source_bucket_name
-      } ${this.target_device_name}:${
-        this.task.target_bucket_name
-      } --config ${path.join(__dirname, 'rclone.conf')}
-        `;
-      console.log(execSentence);
-      console.log('开始执行任务');
+    // 1. 构造shell命令
+    console.log("-".repeat(15), "开始执行任务", "-".repeat(15));
+    const rcloneProcess = spawn("rclone", [
+      "copy",
+      "-P",
+      `${this.sourceDevice.name}:${this.taskInfo.source_bucket_name}`,
+      `${this.targetDevice.name}:${this.taskInfo.target_bucket_name}`,
+      "--config",
+      this.taskInfo.config_url,
+      "--bwlimit",
+      "10K",
+    ]);
+    this.rcloneProcess = rcloneProcess;
+    this.status = "migration";
 
-      exec(execSentence, (err, stdout, stderr) => {
-        if (err) {
-          console.error(err);
-          return;
-        }
-        console.log(stdout);
-        console.error(stderr);
+    // 2. 监听rclone输出数据
+    rcloneProcess.stdout.on("data", (data) => {
+      // 1. 按行切分输出的buffer字符串
+      const dataArr = data.toString("utf-8");
+      // 2. 解析rclone输出数据
+      const result = this.parser(dataArr);
+      // 3. 传输数据到客户端
+      this.transferData(result);
+    });
+
+    // 3. 监听rclone错误输出
+    rcloneProcess.stderr.on("data", (data) => {
+      console.error(data.toString());
+    });
+
+    // 4. 监听rclone关闭事件
+    rcloneProcess.on("close", (code) => {
+      console.log("-".repeat(15), "执行结束", "-".repeat(15));
+      if (code === 0) {
+        console.log("执行成功");
+      } else {
+        console.log("执行失败,错误码：", code);
+      }
+    });
+  }
+
+  /**
+   * rclone输出数据解析器
+   * @param {*} input -rclone 输出的字符串文本
+   * @returns {Object} - 解析结果
+   */
+  parser(input) {
+    //  1. 验证数据类型
+    if (typeof input !== "string") {
+      throw new Error("输入数据类型错误");
+    }
+
+    console.log("*".repeat(15), "开始解析rclone输出数据", "*".repeat(15));
+
+    // 2. 确认文件检查状态
+    const checkStatus = input.match(/Checks:\s*\d*\s*\/\s*\d*,\s*(.*?),/)[1];
+    if (checkStatus !== "100%") {
+      return {};
+    }
+    console.log("文件检查状态：", checkStatus);
+
+    // 3. 提取已下载大小
+    const transferredSize = input.match(/Transferred:\s*(.*?)\//)[1];
+    console.log("已下载大小：", transferredSize);
+
+    // 4. 提取总大小
+    const totalSize = input.match(/Transferred:.*?\/\d*(.*?),/)[1];
+    console.log("总大小：", totalSize);
+
+    // 5. 提取下载速度
+    const downloadSpeed = input.match(/Transferred:.*?%,(.*?),/)[1];
+    console.log("下载速度：", downloadSpeed);
+
+    // 6.提取剩余时间
+    const remainingTime = input.match(/ETA\s*(\w*)/)[1];
+    console.log("剩余时间：", remainingTime);
+
+    // 7. 提取已用时间
+    const elapsedTime = input.match(/Elapsed\stime:\s*(.*?s)/)[1];
+    console.log("已用时间：", elapsedTime);
+
+    // 8. 提取已完成百分比
+    const percent = input.match(/.*?(\d*\%)/)[1];
+    console.log("已完成百分比：", percent);
+
+    // 9. 返回解析结果
+    return {
+      checkStatus,
+      transferredSize,
+      totalSize,
+      downloadSpeed,
+      remainingTime,
+      elapsedTime,
+      percent,
+    };
+  }
+
+  /**
+   *
+   * @param {Object} data
+   */
+  transferData(data) {
+    if (global.wsClients && global.wsClients.size > 0) {
+      global.wsClients.forEach((ws) => {
+        ws.send(JSON.stringify(data));
       });
-    }, 1000);
+    }
   }
 
   stop() {
-    console.log('停止执行任务');
+    // 1. 停止rclone进程
+    if (this.rcloneProcess) {
+      this.rcloneProcess.kill("SIGTERM");
+
+      // 2. 5s未终止，强制杀进程
+      setTimeout(() => {
+        if (this.rcloneProcess && !this.rcloneProcess.killed) {
+          this.rcloneProcess.kill("SIGKILL");
+          console.log("强制杀进程");
+        }
+      }, 5000);
+      this.status = "stopped";
+      if (this.rcloneProcess.killed) {
+        console.log("成功停止执行任务");
+      }
+    } else {
+      console.log("未找到rclone进程");
+    }
   }
 
   restart() {
-    console.log('重启任务');
+    console.log("重启任务");
   }
 }
 

@@ -4,3 +4,12 @@ Content-Type: application/json
 {
   "task_id": 1
 }
+
+###
+# 停止任务
+POST http://localhost:3000/rclone/stop
+Content-Type: application/json
+
+{
+  "task_id": 1
+}

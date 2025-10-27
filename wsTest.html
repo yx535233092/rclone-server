@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      let ws = new WebSocket("ws://localhost:3000");
+      ws.onopen = () => {
+        console.log("连接成功");
+      };
+      ws.onmessage = (event) => {
+        console.log(event.data);
+      };
+      ws.onclose = () => {
+        console.log("连接关闭");
+      };
+      ws.onerror = (event) => {
+        console.log("连接错误");
+      };
+    </script>
+  </body>
+</html>
