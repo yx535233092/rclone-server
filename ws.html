@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      const ws = new WebSocket("ws://localhost:3000");
+      ws.onopen = () => {
+        console.log("WebSocket 连接成功");
+      };
+      ws.onmessage = (event) => {
+        console.log("收到消息:", JSON.parse(event.data));
+      };
+      ws.onclose = () => {
+        console.log("WebSocket 连接关闭");
+      };
+    </script>
+  </body>
+</html>

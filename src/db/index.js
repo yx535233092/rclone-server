@@ -17,7 +17,7 @@ async function initializeDataBase() {
     );
     // 创建jobs表
     await db.run(
-      `create table if not exists jobs(id integer primary key autoincrement, status text not null, source_remote text not null, target_remote text not null, rclone_options text null, pid integer null, start_time text null, end_time text null, total_size_bytes integer default 0)`
+      `create table if not exists jobs(id integer primary key autoincrement, name text unique, status text not null, source_remote text not null, target_remote text not null, rclone_options text null, pid integer null, start_time text null, end_time text null, total_size_bytes integer default 0)`
     );
   } catch (error) {
     console.log(error);

@@ -52,7 +52,8 @@
 
 ### 2. jobs 任务表
 
-- status text not null 状态：NEW、QUEUED、RUNNING、CANCELED、COMPLETED、FAILED
+- name text not null,unique job 名称
+- status text not null 状态：NEW、RUNNING、CANCELED、COMPLETED、FAILED
 - source_remote text not null 源路径
 - target_remote text not null 目标路径
 - rclone_options text null 额外的命令行配置
@@ -66,7 +67,7 @@
 ### 1. 状态
 
 - **NEW**：任务提交入库，等待调度器调取
-- **QUEUED**：被调度器选取，进入队列
+<!-- - **QUEUED**：被调度器选取，进入队列 -->
 - **RUNNING**：运行迁移
 - **CANCELED**：任务取消，**终结态**
 - **FAILED**：任务失败，**终结态**
@@ -75,9 +76,9 @@
 ### 2. 事件
 
 | 事件     | 触发条件                 | 允许的起始状态              | 目标状态  | 后端操作                   |
-| :------- | :----------------------- | :-------------------------- | :-------- | :------------------------- |
+| :------- | :----------------------- | :-------------------------- | :-------- | :------------------------- | ------------ | --- |
 | SUBMIT   | 用户提交任务             | (None)                      | NEW       | 写入 db、初始化参数        |
-| SCHEDULE | 检测到 NEW 任务          | NEW                         | QUEUED    | 更新 db 状态               |
+| <!--     | SCHEDULE                 | 检测到 NEW 任务             | NEW       | QUEUED                     | 更新 db 状态 | --> |
 | START    | 调度器确认可用           | QUEUED                      | RUNNING   | 启动 rclone 进程           |
 | COMPLETE | rclone 进程完成          | RUNNING                     | COMPLETED | 记录最终统计数据           |
 | FAIL     | 退出码非 0 或启动失败    | RUNNING, QUEUED             | FAILED    | 记录 endtime               |
@@ -88,14 +89,18 @@
 ### 3. 状态流转图
 
 state NEW {
-NEW -> QUEUED:E:SCHEDULE
+
+<!-- NEW -> QUEUED:E:SCHEDULE -->
+
 NEW -> CANCELED:E:CANCEL
 }
-state QUEUED {
+
+<!-- state QUEUED {
 QUEUED -> RUNNING:E:START
 QUEUED -> CANCELED:E:CANCEL
 QUEUED -> FAILED:E:FAIL
-}
+} -->
+
 state RUNNING {
 RUNNING -> COMPLETE:COMPLETE
 RUNNING -> FAILED:E:FAIL

@@ -3,13 +3,13 @@ POST http://localhost:3000/api/remotes
 Content-Type: application/json
 
 {
-  "name": "1",
-  "type": "source",
+  "name": "test4",
+  "type": "target",
   "remote_type": "s3",
-  "protocol": "s3",
-  "ak": "test",
-  "sk": "test",
-  "endpoint": "test"
+  "protocol": "Minio",
+  "ak": "minioadmin",
+  "sk": "minioadmin",
+  "endpoint": "http://localhost:9000"
 }
 
 ###

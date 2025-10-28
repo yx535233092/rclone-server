@@ -1,0 +1,15 @@
+# 新增任务
+POST http://localhost:3000/api/jobs
+Content-Type: application/json
+
+{
+  "name": "212",
+  "source_remote_id": 3,
+  "target_remote_id": 4,
+  "source_bucket_name": "my-bucket",
+  "source_url": "/",
+  "target_bucket_name": "another-bucket",
+  "target_url": "/",
+  "concurrent": 1,
+  "limit_speed": 0.1
+}

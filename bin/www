@@ -7,8 +7,7 @@
 var app = require("../src/app");
 var debug = require("debug")("rclone-server:server");
 var http = require("http");
-var ws = require("ws");
-
+var WebSocket = require("../src/services/WebSocket");
 /**
  * Get port from environment and store in Express.
  */
@@ -23,26 +22,9 @@ app.set("port", port);
 var server = http.createServer(app);
 
 // 创建websocket服务器
-var wss = new ws.Server({ server });
-
-// 存储所有客户端连接
-const clients = new Set();
-
-// 监听连接
-wss.on("connection", (ws) => {
-  clients.add(ws);
-
-  ws.on("message", (message) => {
-    console.log("收到客户端消息:", message);
-  });
-
-  ws.on("close", () => {
-    clients.delete(ws);
-  });
-});
-
-// 将客户端连接存储到全局变量中
-global.wsClients = clients;
+var wss = new WebSocket(server);
+wss.connect();
+global.webSocket = wss;
 
 /**
  * Listen on provided port, on all network interfaces.

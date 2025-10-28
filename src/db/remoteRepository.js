@@ -33,6 +33,26 @@ const remoteRepository = {
     await db.run(sql, [id]);
     return true;
   },
+
+  getRemote: async (id) => {
+    const db = getDB();
+    const sql = `select * from remotes where id = ?`;
+    const result = await db.get(sql, [id]);
+    if (!result) {
+      throw new Error("配置不存在");
+    }
+    return result;
+  },
+
+  getRemoteByName: async (name) => {
+    const db = getDB();
+    const sql = `select * from remotes where name = ?`;
+    const result = await db.get(sql, [name]);
+    if (!result) {
+      throw new Error("配置不存在");
+    }
+    return result;
+  },
 };
 
 module.exports = remoteRepository;

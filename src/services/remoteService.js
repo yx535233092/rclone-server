@@ -36,6 +36,11 @@ const remoteService = {
     const result = await remoteRepository.deleteRemote(id);
     return result;
   },
+
+  getRemote: async (id) => {
+    const result = await remoteRepository.getRemote(id);
+    return result;
+  },
 };
 
 module.exports = remoteService;
