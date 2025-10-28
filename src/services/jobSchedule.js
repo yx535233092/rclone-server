@@ -6,7 +6,7 @@ const { STATUS } = require("./jobService");
 class JobSchedule {
   constructor() {
     this.intervalRef = null;
-    this.MAX_JOBS = 10;
+    this.MAX_JOBS = 5;
     this.jobRepo = jobRepository;
     this.JobService = JobService;
   }
@@ -16,7 +16,7 @@ class JobSchedule {
     // 检查中断任务
     await this.checkRevocerJob(activeJobs);
     // 超过最大任务数，直接返回
-    if (activeJobs.length > this.MAX_JOBS) {
+    if (activeJobs.length >= this.MAX_JOBS) {
       console.log("已达任务上限");
       return;
     }
