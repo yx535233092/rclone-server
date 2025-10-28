@@ -47,7 +47,7 @@
 
 - id integer primary key 配置唯一 id
 - name text not null,unique remote 名称
-- type text not null 存储类型（如 s3、drive）
+- type text not null 存储类型（源或目标）
 - config_json text not null 详细配置信息
 
 ### 2. jobs 任务表

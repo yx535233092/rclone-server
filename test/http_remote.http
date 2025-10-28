@@ -1,0 +1,40 @@
+# 添加配置
+POST http://localhost:3000/api/remotes
+Content-Type: application/json
+
+{
+  "name": "1",
+  "type": "source",
+  "remote_type": "s3",
+  "protocol": "s3",
+  "ak": "test",
+  "sk": "test",
+  "endpoint": "test"
+}
+
+###
+# 获取配置列表 源设备
+GET http://localhost:3000/api/remotes?type=source
+
+### 
+# 获取配置列表 目标设备
+GET http://localhost:3000/api/remotes?type=target
+
+###
+# 编辑配置
+PUT http://localhost:3000/api/remotes/8
+Content-Type: application/json
+
+{
+  "name": "te111",
+  "type": "source",
+  "remote_type": "s3",
+  "protocol": "s3",
+  "ak": "test",
+  "sk": "test",
+  "endpoint": "test"
+}
+
+###
+# 删除配置
+DELETE http://localhost:3000/api/remotes/10
