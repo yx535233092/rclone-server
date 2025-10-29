@@ -68,6 +68,52 @@ const jobRepository = {
     }
     return true;
   },
+  getAllJobs: async () => {
+    const db = getDB();
+    const sql = `select * from jobs order by id desc`;
+    const result = await db.all(sql);
+    if (!result) {
+      return [];
+    }
+    return result;
+  },
+  getJobById: async (jobId) => {
+    const db = getDB();
+    const sql = `select * from jobs where id = ?`;
+    const result = await db.get(sql, [jobId]);
+    return result;
+  },
+  deleteJob: async (jobId) => {
+    const db = getDB();
+    const sql = `delete from jobs where id = ?`;
+    const { changes } = await db.run(sql, [jobId]);
+    if (changes === 0) {
+      return false;
+    }
+    console.log("删了");
+
+    return true;
+  },
+  updateJob: async (jobId, rclone_options) => {
+    const db = getDB();
+    const sql = `update jobs set  rclone_options = ? where id = ?`;
+    const { changes } = await db.run(sql, [rclone_options, jobId]);
+    if (changes === 0) {
+      return false;
+    }
+    const getSql = `select * from jobs where id = ?`;
+    const result = await db.get(getSql, [jobId]);
+    return result;
+  },
+  updateJobTotalBytes: async (jobId, totalBytes) => {
+    const db = getDB();
+    const sql = `update jobs set total_size_bytes = ? where id = ?`;
+    const { changes } = await db.run(sql, [totalBytes, jobId]);
+    if (changes === 0) {
+      return false;
+    }
+    return true;
+  },
 };
 
 module.exports = jobRepository;

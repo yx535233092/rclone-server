@@ -126,6 +126,7 @@ router.delete("/:id", async (req, res) => {
     return res.json({
       code: 200,
       message: "删除配置成功",
+      data: result,
     });
   } catch (error) {
     console.log(error);

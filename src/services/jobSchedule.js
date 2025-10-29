@@ -6,7 +6,7 @@ const { STATUS } = require("./jobService");
 class JobSchedule {
   constructor() {
     this.intervalRef = null;
-    this.MAX_JOBS = 5;
+    this.MAX_JOBS = 10;
     this.jobRepo = jobRepository;
     this.JobService = JobService;
   }
@@ -36,7 +36,7 @@ class JobSchedule {
     this.runSchedule();
     this.intervalRef = setInterval(async () => {
       await this.runSchedule();
-    }, 3000);
+    }, 2000);
   }
 
   stop() {

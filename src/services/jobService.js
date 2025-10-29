@@ -44,40 +44,6 @@ class JobService {
     return result;
   }
 
-  async generateConfigFile(job) {
-    console.log("生成配置文件");
-    const source_remote_info = await remoteRepo.getRemoteByName(job.source_remote.split(":")[0]);
-    const target_remote_info = await remoteRepo.getRemoteByName(job.target_remote.split(":")[0]);
-
-    const config_file = `
-    [${source_remote_info.name}]
-    type = ${JSON.parse(source_remote_info.config_json).remote_type}
-    provider = ${JSON.parse(source_remote_info.config_json).protocol}
-    access_key_id = ${JSON.parse(source_remote_info.config_json).ak}
-    secret_access_key = ${JSON.parse(source_remote_info.config_json).sk}
-    endpoint = ${JSON.parse(source_remote_info.config_json).endpoint}
-
-    [${target_remote_info.name}]
-    type = ${JSON.parse(target_remote_info.config_json).remote_type}
-    provider = ${JSON.parse(target_remote_info.config_json).protocol}
-    access_key_id = ${JSON.parse(target_remote_info.config_json).ak}
-    secret_access_key = ${JSON.parse(target_remote_info.config_json).sk}
-    endpoint = ${JSON.parse(target_remote_info.config_json).endpoint}
-    `;
-    return config_file;
-  }
-
-  transferData(job, data) {
-    global.webSocket.clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          jobId: job.id,
-          data: data,
-        })
-      );
-    });
-  }
-
   // event: START
   async startJob(job) {
     // 更新任务状态为RUNNING
@@ -117,14 +83,32 @@ class JobService {
     // 监听rclone进程输出
     rcloneProcess.stderr.on("data", async (data) => {
       const json = JSON.parse(data.toString());
+      await jobRepository.updateJobTotalBytes(job.id, json.stats.totalBytes);
       this.transferData(job, json);
     });
 
     rcloneProcess.on("close", async (code) => {
       console.log("rclone进程关闭");
+      global.webSocket.clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            finish: true,
+            jobId: job.id,
+          })
+        );
+      });
+
+      // event: FAIL
       if (code !== 0) {
-        // event: FAIL
-        await jobRepository.updateJobStatus(job.id, JobService.STATUS.FAILED);
+        // 如果任务状态为CANCELED，则不更新为FAILED
+        try {
+          const jobInfo = await jobRepository.getJobById(job.id);
+          if (jobInfo && jobInfo.status !== JobService.STATUS.CANCELED) {
+            await jobRepository.updateJobStatus(job.id, JobService.STATUS.FAILED);
+          }
+        } catch (error) {
+          console.error(error);
+        }
         await jobRepository.updateJobEndTime(job.id, new Date().toLocaleString());
         this.runningProcesses.delete(job.id);
         console.log("任务失败");
@@ -140,24 +124,63 @@ class JobService {
 
   // event: STOP
   async stopJob(job) {
+    console.log("停止任务");
+    await jobRepository.updateJobStatus(job.id, JobService.STATUS.CANCELED);
+    await jobRepository.updateJobEndTime(job.id, new Date().toLocaleString());
+    await this.killJob(job);
+  }
+
+  killJob(job) {
     const rcloneProcess = this.runningProcesses.get(job.id);
     if (rcloneProcess) {
       rcloneProcess.kill("SIGTERM");
       setTimeout(() => {
         if (rcloneProcess && !rcloneProcess.killed) {
           rcloneProcess.kill("SIGKILL");
-          console.log("强制杀进程");
         }
       }, 5000);
     }
     if (rcloneProcess.killed) {
       console.log("进程已杀死");
-      await jobRepository.updateJobStatus(job.id, JobService.STATUS.CANCELED);
-      await jobRepository.updateJobEndTime(job.id, new Date().toLocaleString());
       this.runningProcesses.delete(job.id);
     } else {
       console.log("进程未杀死");
     }
+  }
+
+  async generateConfigFile(job) {
+    console.log("生成配置文件");
+    const source_remote_info = await remoteRepo.getRemoteByName(job.source_remote.split(":")[0]);
+    const target_remote_info = await remoteRepo.getRemoteByName(job.target_remote.split(":")[0]);
+
+    const config_file = `
+    [${source_remote_info.name}]
+    type = ${JSON.parse(source_remote_info.config_json).remote_type}
+    provider = ${JSON.parse(source_remote_info.config_json).protocol}
+    access_key_id = ${JSON.parse(source_remote_info.config_json).ak}
+    secret_access_key = ${JSON.parse(source_remote_info.config_json).sk}
+    endpoint = ${JSON.parse(source_remote_info.config_json).endpoint}
+
+    [${target_remote_info.name}]
+    type = ${JSON.parse(target_remote_info.config_json).remote_type}
+    provider = ${JSON.parse(target_remote_info.config_json).protocol}
+    access_key_id = ${JSON.parse(target_remote_info.config_json).ak}
+    secret_access_key = ${JSON.parse(target_remote_info.config_json).sk}
+    endpoint = ${JSON.parse(target_remote_info.config_json).endpoint}
+    `;
+    return config_file;
+  }
+
+  transferData(job, data) {
+    global.webSocket.clients.forEach((client) => {
+      client.send(
+        JSON.stringify({
+          finish: false,
+          jobId: job.id,
+          data: data,
+        })
+      );
+    });
   }
 }
 
