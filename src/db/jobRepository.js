@@ -1,4 +1,6 @@
 const { getDB } = require(".");
+const path = require("path");
+const fs = require("fs");
 
 const jobRepository = {
   createJob: async (name, status, source_remote, target_remote, rclone_options) => {
@@ -90,8 +92,11 @@ const jobRepository = {
     if (changes === 0) {
       return false;
     }
-    console.log("删了");
-
+    const config_path = path.join(__dirname, "..", "..", "public", "configs", `rclone_${jobId}.conf`);
+    if (fs.existsSync(config_path)) {
+      fs.unlinkSync(config_path);
+    }
+    console.log("删除任务成功，任务id：", jobId);
     return true;
   },
   updateJob: async (jobId, rclone_options) => {
