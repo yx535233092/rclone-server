@@ -5,7 +5,7 @@
 - **后端**：Nodejs
 - **数据库**：Sqlite
 - **异步**：child_process + scheduler
-- **命令**：Rclone
+- **命令**：Rclone v1.71.2
 - **前端**：React19
 
 ## 架构：分层架构

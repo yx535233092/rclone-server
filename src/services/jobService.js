@@ -85,7 +85,6 @@ class JobService {
     rcloneProcess.stderr.on("data", async (data) => {
       try {
         const json = JSON.parse(data.toString());
-        console.log(json);
         if (json.level !== "error") {
           this.wsTransferData(job, json, JobService.STATUS.RUNNING);
           //更新总大小
@@ -190,6 +189,7 @@ class JobService {
   }
 
   wsTransferData(job, data, status) {
+    console.log("ws数据传输中");
     global.webSocket.clients.forEach((client) => {
       client.send(
         JSON.stringify({
