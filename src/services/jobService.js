@@ -81,53 +81,71 @@ class JobService {
     await jobRepository.updateJobPid(job.id, rcloneProcess.pid);
     await jobRepository.updateJobStartTime(job.id, new Date().toLocaleString());
     // 监听rclone进程输出
+    let totalBytes = 0;
     rcloneProcess.stderr.on("data", async (data) => {
-      const json = JSON.parse(data.toString());
-      await jobRepository.updateJobTotalBytes(job.id, json.stats.totalBytes);
-      this.transferData(job, json);
+      try {
+        const json = JSON.parse(data.toString());
+        console.log(json);
+        if (json.level !== "error") {
+          this.wsTransferData(job, json, JobService.STATUS.RUNNING);
+          //更新总大小
+          if (totalBytes === 0) {
+            totalBytes = json.stats.totalBytes;
+            await jobRepository.updateJobTotalBytes(job.id, totalBytes);
+          }
+        }
+      } catch (error) {}
     });
 
     rcloneProcess.on("close", async (code) => {
-      console.log("rclone进程关闭");
-      global.webSocket.clients.forEach((client) => {
-        client.send(
-          JSON.stringify({
-            finish: true,
-            jobId: job.id,
-          })
-        );
-      });
-
-      // event: FAIL
-      if (code !== 0) {
-        // 如果任务状态为CANCELED，则不更新为FAILED
-        try {
-          const jobInfo = await jobRepository.getJobById(job.id);
-          if (jobInfo && jobInfo.status !== JobService.STATUS.CANCELED) {
-            await jobRepository.updateJobStatus(job.id, JobService.STATUS.FAILED);
-          }
-        } catch (error) {
-          console.error(error);
-        }
-        await jobRepository.updateJobEndTime(job.id, new Date().toLocaleString());
-        this.runningProcesses.delete(job.id);
-        console.log("任务失败");
-        return;
-      }
-      // event: COMPLETE
-      await jobRepository.updateJobStatus(job.id, JobService.STATUS.COMPLETED);
+      console.log("任务id：" + job.id, "，rclone进程退出，状态码：", code);
       await jobRepository.updateJobEndTime(job.id, new Date().toLocaleString());
       this.runningProcesses.delete(job.id);
-      console.log("任务成功");
+      const jobInfo = await jobRepository.getJobById(job.id);
+      if (jobInfo && jobInfo.status === JobService.STATUS.CANCELED) {
+        global.webSocket.clients.forEach((client) => {
+          client.send(
+            JSON.stringify({
+              status: JobService.STATUS.CANCELED,
+              jobId: job.id,
+            })
+          );
+        });
+        return;
+      }
+
+      // 传输完成，进程正常退出 E:COMPLETE
+      if (code === 0) {
+        await jobRepository.updateJobStatus(job.id, JobService.STATUS.COMPLETED);
+        global.webSocket.clients.forEach((client) => {
+          client.send(
+            JSON.stringify({
+              status: JobService.STATUS.COMPLETED,
+              jobId: job.id,
+            })
+          );
+        });
+      }
+      // 传输失败，进程异常退出 E:FAIL
+      else {
+        await jobRepository.updateJobStatus(job.id, JobService.STATUS.FAILED);
+        global.webSocket.clients.forEach((client) => {
+          client.send(
+            JSON.stringify({
+              status: JobService.STATUS.FAILED,
+              jobId: job.id,
+            })
+          );
+        });
+      }
     });
   }
 
   // event: STOP
   async stopJob(job) {
     console.log("停止任务");
+    // 状态改为CANCELED
     await jobRepository.updateJobStatus(job.id, JobService.STATUS.CANCELED);
-    await jobRepository.updateJobEndTime(job.id, new Date().toLocaleString());
-    await this.killJob(job);
   }
 
   killJob(job) {
@@ -171,11 +189,11 @@ class JobService {
     return config_file;
   }
 
-  transferData(job, data) {
+  wsTransferData(job, data, status) {
     global.webSocket.clients.forEach((client) => {
       client.send(
         JSON.stringify({
-          finish: false,
+          status: status,
           jobId: job.id,
           data: data,
         })

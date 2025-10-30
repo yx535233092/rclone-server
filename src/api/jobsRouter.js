@@ -135,6 +135,7 @@ router.post("/:id/stop", async (req, res) => {
       });
     }
     await JobService.stopJob(job);
+    await JobService.killJob(job);
     return res.json({
       code: 200,
       message: "停止任务成功",

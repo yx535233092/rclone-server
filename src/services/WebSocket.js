@@ -11,6 +11,7 @@ class WebSocket {
     this.ws = new ws.Server({ server: this.server });
     this.ws.on("listening", () => {
       console.log("WebSocket 服务器已启动");
+      this.healthCheck();
     });
     this.ws.on("connection", (connection) => {
       console.log("客户端连接");
@@ -23,6 +24,19 @@ class WebSocket {
         this.clients.delete(connection);
       });
     });
+  }
+
+  healthCheck() {
+    setInterval(() => {
+      this.clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            type: "heartbeat",
+            message: "ping",
+          })
+        );
+      });
+    }, 30000);
   }
 }
 
